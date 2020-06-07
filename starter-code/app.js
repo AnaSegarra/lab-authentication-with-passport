@@ -10,11 +10,7 @@ const logger = require('morgan');
 const path = require('path');
 const session = require('express-session');
 const MongoStore = require('connect-mongo')(session);
-const passport = require('passport');
 const flash = require('connect-flash');
-const LocalStrategy = require('passport-local').Strategy;
-const { checkHash } = require('./lib/hashing');
-const User = require('./models/user');
 
 mongoose
 	.connect(process.env.MONGODB_URL, { useNewUrlParser: true, useUnifiedTopology: true, useCreateIndex: true })
@@ -46,35 +42,8 @@ app.use(
 	})
 );
 app.use(flash());
-passport.serializeUser((user, done) => done(null, user._id));
-passport.deserializeUser((id, done) => {
-	console.log('deserializing user');
-	User.findById(id)
-		.then(user => {
-			done(null, user);
-		})
-		.catch(error => done(error));
-});
-passport.use(
-	new LocalStrategy({ passReqToCallback: true }, async (req, username, password, done) => {
-		try {
-			const registeredUser = await User.findOne({ username });
-			if (!registeredUser || !checkHash(password, registeredUser.password)) {
-				console.log('Invalid credentials');
-				req.flash('error', 'Invalid credentials');
-				return done(null, false);
-			} else {
-				console.log(`${registeredUser} just logged in`);
-				return done(null, registeredUser);
-			}
-		} catch (error) {
-			return done(error);
-		}
-	})
-);
-app.use(passport.initialize());
-app.use(passport.session());
 
+require('./passport')(app);
 // Setup user for every view
 app.use((req, res, next) => {
 	console.log(req.session);
